@@ -57,18 +57,20 @@ def kafka_service(docker_ip, docker_services):
 
 @pytest.fixture
 def consume():
-    def _consume(group_id, topic, n):
+    def _consume(group_id, topic, n, max_messages):
         config = {
             "bootstrap.servers": "localhost:9094",
             "group.id": group_id,
             "auto.offset.reset": "beginning",
             "enable.partition.eof": "true",
+            "enable.auto.commit": "false",
         }
         consumer = Consumer(config)
         consumer.subscribe(topics=[topic])
-        print(f"subscribed to {topic}")
-        msg_count = 0
+        messages = 0
         while True:
+            if messages == max_messages:
+                return
             msg = consumer.consume(num_messages=n, timeout=5)
             if len(msg) == 0:
                 continue
@@ -78,11 +80,12 @@ def consume():
                     if m.error().code() == KafkaError._PARTITION_EOF:
                         return
 
-                    elif msg.error():
-                        raise KafkaException(msg.error())
+                    elif m.error():
+                        raise KafkaException(m.error())
                 else:
-                    msg_count += 1
-                    if msg_count % 5 == 0:
-                        consumer.commit(asynchronous=False)
+                    messages += 1
+                    if messages == max_messages:
+                        break
+            consumer.commit(asynchronous=False)
 
     return _consume

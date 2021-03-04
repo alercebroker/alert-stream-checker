@@ -1,0 +1,2 @@
+class LagCalculatorException(Exception):
+    pass
