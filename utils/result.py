@@ -14,6 +14,10 @@ class Result:
     """
 
     def __init__(self, success, check_success, value, error):
+        if success and error:
+            raise Exception("Can't have a succesfull result with error")
+        if not success and value:
+            raise Exception("Can't have an errored result with value")
         self.success = success
         self.check_success = check_success
         self.error = error
@@ -45,3 +49,20 @@ class Result:
     def Ok(cls, value=None, check_success=True):
         """Create a Result object for a successful operation."""
         return cls(True, value=value, check_success=check_success, error=None)
+
+    @classmethod
+    def combine(cls, result_list):
+        acc = cls.Ok(value=[], check_success=True)
+        for result in result_list:
+            if acc.success:
+                if result.success:
+                    if type(result.value) is list:
+                        acc.value.extend(result.value)
+                    else:
+                        acc.value.append(result.value)
+                    acc.check_success = result.check_success
+                else:
+                    acc = cls.Fail(result.error)
+            else:
+                break
+        return acc
