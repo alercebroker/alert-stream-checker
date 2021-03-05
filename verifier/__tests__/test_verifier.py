@@ -1,1 +1,2 @@
-
+class TestStreamChecker:
+    pass

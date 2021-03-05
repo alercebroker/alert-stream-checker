@@ -1,47 +1,57 @@
-from ..lag_calculator import LagCalculator
 from confluent_kafka import KafkaException
 import pytest
 from utils.errors import LagCalculatorException
+from confluent_kafka import Consumer
+from verifier import LagCalculator
+from utils.stream import Stream
+
+
+def consumer_factory(config):
+    return Consumer(config)
+
+
+class MockParser:
+    def to_report(self, data):
+        return data
 
 
 class TestGetLag:
+    parser = MockParser()
+
     def test_get_lag_zero(self, kafka_service, consume):
         consume(group_id="lag_zero", topic="test", n=5, max_messages=10)
-        consumer_config = {
-            "bootstrap.servers": "localhost:9094",
-            "group.id": "lag_zero",
-        }
-        lag_calculator = LagCalculator(consumer_config=consumer_config, topics=["test"])
-        lag = lag_calculator.get_lag()
-        assert lag["test"][0] == 0
+        stream = Stream("localhost:9094", "lag_zero", "test")
+        lag_calculator = LagCalculator(consumer_factory=consumer_factory, stream=stream)
+        lag = lag_calculator.get_lag(self.parser)
+        assert lag["part_0"] == 0
 
     def test_get_lag_not_zero(self, kafka_service, consume):
         consume(group_id="lag_not_zero", topic="test", n=5, max_messages=5)
-        consumer_config = {
-            "bootstrap.servers": "localhost:9094",
-            "group.id": "lag_not_zero",
-        }
-        lag_calculator = LagCalculator(consumer_config=consumer_config, topics=["test"])
-        lag = lag_calculator.get_lag()
-        assert lag["test"][0] == 5
+        stream = Stream("localhost:9094", "lag_not_zero", "test")
+        lag_calculator = LagCalculator(consumer_factory=consumer_factory, stream=stream)
+        lag = lag_calculator.get_lag(self.parser)
+        assert lag["part_0"] == 5
 
     def test_get_lag_not_previously_consumed(self, kafka_service):
-        consumer_config = {
-            "bootstrap.servers": "localhost:9094",
-            "group.id": "first_consume",
-        }
-        lag_calculator = LagCalculator(consumer_config=consumer_config, topics=["test"])
-        lag = lag_calculator.get_lag()
-        assert lag["test"][0] == 10
+        stream = Stream("localhost:9094", "first_consume", "test")
+        lag_calculator = LagCalculator(consumer_factory=consumer_factory, stream=stream)
+        lag = lag_calculator.get_lag(self.parser)
+        assert lag["part_0"] == 10
 
     def test_get_lag_topic_error(self, kafka_service):
-        consumer_config = {
-            "bootstrap.servers": "localhost:9094",
-            "group.id": "anything",
-        }
+        stream = Stream("localhost:9094", "anything", ["non_existent"])
         with pytest.raises(KafkaException):
             lag_calculator = LagCalculator(
-                consumer_config=consumer_config, topics=["non_existent"]
+                consumer_factory=consumer_factory, stream=stream
             )
-            lag = lag_calculator.get_lag()
-            print(lag)
+            lag = lag_calculator.get_lag(self.parser)
+
+
+class TestGetTopicMessages:
+    parser = MockParser()
+
+    def test_get_topic_messages(self, kafka_service):
+        stream = Stream("localhost:9094", "first_consume", "test")
+        lag_calculator = LagCalculator(consumer_factory=consumer_factory, stream=stream)
+        messages = lag_calculator.get_messages(self.parser)
+        assert messages == 10
