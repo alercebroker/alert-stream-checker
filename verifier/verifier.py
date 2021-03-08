@@ -41,15 +41,17 @@ class DBVerifier():
         self.identifiers = identifiers
         self.brokers = brokers
 
+        # Creating connection
         try:
             self.engine = create_engine(db_connection)
         except ArgumentError as e:
             self.engine = None
             raise ArgumentError(f"Engine correction cannot be created ({str(e)})")
 
+        # Creating base query
         self.QUERY = create_base_query(table)
 
-
+        # Creating consumer and getting total offsets
         self.consumer = Consumer({
             "bootstrap.servers": self.brokers,
             "group.id": group_id,
@@ -64,6 +66,14 @@ class DBVerifier():
 
 
     def _get_total_offsets(self):
+        """Get total offsets for the current topic.
+
+        Returns
+        -------
+        int
+            Total offset (messages) in topic.
+
+        """
         self.consumer.poll()
         partitions = self.consumer.assignment()
         total_offsets = 0
