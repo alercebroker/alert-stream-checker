@@ -1,10 +1,7 @@
-import time
-import fastavro
-from io import BytesIO
+from utils.result import Result
+from utils.stream import Stream
+from . import LagCalculator
 
-from confluent_kafka import Consumer, KafkaError, OFFSET_BEGINNING
-from sqlalchemy import create_engine
-from sqlalchemy.exc import ArgumentError, ProgrammingError
 
 from utils import Result, create_base_query, create_postgresql_connection
 
@@ -174,3 +171,6 @@ class DBVerifier():
         if self.engine:
             print("Closing DB Connection")
             self.engine.dispose()
+
+class StreamChecker:
+    pass
